@@ -6,6 +6,8 @@ WriteMakefile
   'VERSION_FROM' => 'lib/Plosurin.pm',
   'PREREQ_PM' => {
                    'HTTP::Server::Simple::WebDAO' => '0.01',
+                   'Perl6::Pod' => '0.35',
+                   'Perl6::Pod::Lib' => '0.07',
                    'Regexp::Grammars' => '1.014'
                  },
   'INSTALLDIRS' => 'site',

@@ -22,6 +22,8 @@
       "runtime" : {
          "requires" : {
             "HTTP::Server::Simple::WebDAO" : "0.01",
+            "Perl6::Pod" : "0.35",
+            "Perl6::Pod::Lib" : "0.07",
             "Regexp::Grammars" : "1.014"
          }
       }
@@ -37,7 +39,7 @@
       },
       "Plosurin" : {
          "file" : "lib/Plosurin.pm",
-         "version" : "0.0_1"
+         "version" : "0.0_2"
       },
       "Plosurin::Context" : {
          "file" : "lib/Plosurin/Context.pm",
@@ -95,6 +97,10 @@
          "file" : "lib/Plosurin/SoyTree.pm",
          "version" : 0
       },
+      "Soy::command_import" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
       "Soy::command_param" : {
          "file" : "lib/Plosurin/SoyTree.pm",
          "version" : 0
@@ -128,5 +134,5 @@
          "url" : "git://github.com/zag/p5-Plosurin.git"
       }
    },
-   "version" : "0.0_1"
+   "version" : "0.0_2"
 }
