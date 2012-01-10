@@ -1,14 +1,5 @@
 #!/usr/bin/perl
-package Plo::h_params;
-sub new  {
-    my $class = shift;
-    bless ( ($#_ == 0) ? shift : {@_}, ref($class) || $class);
-}
-sub name { $_[0]->{id} }
-sub is_notreq {$_[0]->{is_notreq} }
-sub comment {$_[0]->{raw_str}}
-1;
-package main;
+
 use strict;
 use warnings;
 use Test::More tests => 9;    # last test to print
@@ -92,7 +83,7 @@ $str = <<'TXT2';
 TXT2
 
 my $file = $p->parse($str);
-ok ($p->as_perl5({package=>"MyApp"},$file) =~ m/Main_sample_sub/, "convert call"); #exit;
+ok ($p->as_perl5({package=>"MyApp"},$file) =~ m/Main_sample_sub/, "convert call"); 
 
 $str=<<'TXT3';
 {namespace Test.Sdsr}
@@ -136,7 +127,7 @@ if ($str =~ $q) {
 exit;
 =cut
 my $f2 = $p->parse($str, 's');
-is scalar($f2->templates),3 ,"java doc withot param";
+is scalar($f2->templates),3 ,"java doc without param";
 
 
 

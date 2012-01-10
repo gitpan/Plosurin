@@ -4,6 +4,7 @@
 #
 #       AUTHOR:  Aliaksandr P. Zahatski, <zahatski@gmail.com>
 #===============================================================================
+
 =head1 NAME
 
 Plosurin::SoyTree - syntax tree
@@ -29,15 +30,6 @@ sub new {
     bless( ( $#_ == 0 ) ? shift : {@_}, ref($class) || $class );
 }
 
-sub content_ {
-    my $self = shift;
-    my ($a) = @_;
-
-    #   say Dumper( $a );
-    #    say Dumper(\@_);
-    #    @_
-    $a;
-}
 1;
 
 package Soy::base;
@@ -48,6 +40,14 @@ sub new {
     bless( ( $#_ == 0 ) ? shift : {@_}, ref($class) || $class );
 }
 
+# return undef if ok
+# else string with [error] Bad value
+# or [warn] not inited variable
+
+sub check {
+    my $self = shift;
+    return undef;    #ok
+}
 
 sub attrs {
     my $self = shift;
@@ -68,21 +68,19 @@ sub childs {
     [ @{ $self->{content} } ];
 }
 
-sub as_perl5 { die "$_[0]\-\>as_perl5 unimplemented " }
-
 sub dump {
     my $self   = shift;
     my $childs = $self->childs;
-    my $res = {};
+    my $res    = {};
     if ( scalar(@$childs) ) {
         $res->{childs} = [
-                map {
-                    { ref( $_->{obj} ) => $_->{obj}->dump }
-                  } @$childs
-            ]
-        };
-    if (scalar( keys %{$self->attrs})) {
-        $res->{attrs}    = $self->attrs;
+            map {
+                { ref( $_->{obj} ) => $_->{obj}->dump }
+              } @$childs
+        ];
+    }
+    if ( scalar( keys %{ $self->attrs } ) ) {
+        $res->{attrs} = $self->attrs;
     }
 
     $res;
@@ -101,12 +99,6 @@ use base 'Soy::base';
 package Soy::raw_text;
 use base 'Soy::base';
 
-sub as_perl5 {
-    my $self = shift;
-    my $str  = $self->{''};
-    $str =~ s/\!/\\\!/g;
-    "\$res .=q!$str!;\n";
-}
 1;
 
 package Soy::command_elseif;
@@ -127,34 +119,6 @@ use base 'Soy::base';
 use strict;
 use warnings;
 use Data::Dumper;
-
-sub as_perl5 {
-    my ( $self, $ctx ) = @_;
-    my $template = $self->{tmpl_name};
-    my $attr     = $self->attrs;
-    my $tmpl     = $ctx->get_template_by_name($template);
-    my $sub = $ctx->get_perl5_name($tmpl) || die "Not found template $template";
-    if ( scalar( @{ $self->childs } ) ) {
-        my $code = '';
-        my @ch   = @{ $self->childs };
-        foreach my $p ( @{ $self->childs } ) {
-
-            #check if childs id param
-            die "{call ... }{/call} can contain only {param}"
-              unless $p->isa('Soy::command_param') || $p->isa('Soy::Node');
-
-            #now export
-            $code .= $p->as_perl5($ctx);
-        }
-        return
-            '$res .= &' 
-          . $sub . '(' 
-          . $code
-          . '); # calling '
-          . $template . "\n";
-    }
-    return '$res .= &' . $sub . '(@_); # calling ' . $template . "\n";
-}
 
 sub dump {
     my $self = shift;
@@ -249,6 +213,228 @@ use strict;
 use warnings;
 use base 'Soy::base';
 1;
+
+# $VAR1 = bless( {
+#                  'matchline' => 1,
+#                  '' => '{foreach $i in [1..10]}ok{ifempty} oo{/foreach}',
+#                  'command_foreach_ifempty' => bless( {
+#                                                        'matchline' => 1,
+#                                                        '' => '{ifempty} oo',
+#                                                        'content' => [
+#                                                                       bless( {
+#                                                                                'matchline' => 1,
+#                                                                                'obj' => bless( {
+#                                                                                                  '' => ' oo'
+#                                                                                                }, 'Soy::raw_text' ),
+#                                                                                '' => ' oo',
+#                                                                                'matchpos' => 34
+#                                                                              }, 'Soy::Node' )
+#                                                                     ],
+#                                                        'matchpos' => 25
+#                                                      }, 'Soy::command_foreach_ifempty' ),
+#                  'expression' => bless( {
+#                                           '' => '[1..10]'
+#                                         }, 'Soy::expression' ),
+#                  'content' => [
+#                                 bless( {
+#                                          'matchline' => 1,
+#                                          'obj' => bless( {
+#                                                            '' => 'ok'
+#                                                          }, 'Soy::raw_text' ),
+#                                          '' => 'ok',
+#                                          'matchpos' => 23
+#                                        }, 'Soy::Node' )
+#                               ],
+#                  'local_var' => bless( {
+#                                          '' => '$i'
+#                                        }, 'Soy::expression' ),
+#                  'srcfile' => 'test'
+#                }, 'Soy::command_foreach' );
+
+package Soy::command_foreach;
+use strict;
+use warnings;
+use base 'Soy::base';
+
+sub get_var_name {
+    my $self = shift;
+    my $name = $self->{local_var}->{''};
+    $name =~ /\$(\w+)/ ? $1 : undef;
+}
+
+sub get_ifempty {
+    my $self = shift;
+    $self->{command_foreach_ifempty};
+}
+
+sub dump {
+    my $self = shift;
+    my %res  = (
+        %{ $self->SUPER::dump() },
+
+        #    expression => $self->{expression}
+    );
+    if ( exists $self->{command_foreach_ifempty} ) {
+        my $ife = $self->{command_foreach_ifempty};
+        $res{ifempty} = $ife->dump;
+
+    }
+    \%res;
+}
+
+package Soy::command_foreach_ifempty;
+use strict;
+use warnings;
+use base 'Soy::base';
+
+package Soy::Expression;
+use strict;
+use warnings;
+use Regexp::Grammars;
+use Plosurin::Grammar;
+use base 'Soy::expression';
+
+sub new {
+    my $class = shift;
+    bless( ( $#_ == 0 ) ? { '' => shift } : {@_}, ref($class) || $class );
+}
+
+1;
+
+package Soy::expression;
+use strict;
+use warnings;
+use Regexp::Grammars;
+use Plosurin::Grammar;
+use Plosurin::Utl::ExpMapVariables;
+
+use Data::Dumper;
+use base 'Soy::base';
+
+=head2 parse {map_of_variables}
+
+    my $e = new Soy::Expresion('1+2');
+    $e->parse({w=>"local_variable"});
+
+
+=cut
+
+sub parse {
+    my $self            = shift;
+    my $var_map         = shift;
+    my $template_params = shift;
+    my $txt             = $self->{''};
+    my $q               = qr{
+     <extends: Plosurin::Exp::Grammar>
+    <nocontext:>
+    <expr>
+    }xms;
+    if ( $txt =~ $q ) {
+        my $tree = $/{expr};
+        my $p    = new Plosurin::Utl::ExpMapVariables(
+            vars   => $var_map,
+            params => $template_params
+        );
+        $p->visit($tree);
+        return $tree;
+    }
+    else { return "BAD" }
+}
+
+package Exp::base;
+use Data::Dumper;
+use base 'Soy::base';
+
+sub new {
+    my $class = shift;
+    bless( ( $#_ == 0 ) ? shift : {@_}, ref($class) || $class );
+}
+
+sub childs {
+    my $self = shift;
+    return [];
+}
+
+sub as_perl5 {
+    my $self = shift;
+    die "Method as_perl5 not implemented for " . ref($self);
+}
+
+package Exp::Var;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::base';
+
+sub as_perl5 {
+    my $self = shift;
+    return "\$$self->{Ident}";
+}
+
+package Exp::Digit;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::base';
+
+sub as_perl5 {
+    my $self = shift;
+    return $self->{''};
+}
+
+package Exp::add;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::base';
+
+sub as_perl5 {
+    my $self = shift;
+    return $self->{a}->as_perl5() . $self->{op} . $self->{b}->as_perl5();
+}
+
+sub childs {
+    my $self = shift;
+    return [ $self->{a}, $self->{b} ];
+}
+
+package Exp::mult;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::add';
+1;
+
+package Exp::String;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::base';
+
+sub as_perl5 {
+    my $self = shift;
+    return "'$self->{value}'";
+}
+
+package Exp::list;
+use strict;
+use warnings;
+use Data::Dumper;
+use base 'Exp::base';
+
+sub childs {
+    my $self = shift;
+    if (@_) {
+        $self->{expr} = \@_;
+    }
+    return $self->{expr};
+}
+
+sub as_perl5 {
+    my $self = shift;
+    return '[' . join( ",", map { $_->as_perl5() } @{ $self->childs } ) . "]";
+}
+
 package Plosurin::SoyTree;
 use strict;
 use warnings;
@@ -259,14 +445,19 @@ use Regexp::Grammars;
 
 =head2 new
 
-    my $st = new Plosurin::SoyTree( src => "txt");
-    my $tree = $stree->parse( "text")
+    my $st = new Plosurin::SoyTree( 
+            src => "txt",
+            srcfile=>"filesrc",
+            offset=>0
+            );
 
 =cut
 
 sub new {
     my $class = shift;
     my $self = bless( ( $#_ == 0 ) ? shift : {@_}, ref($class) || $class );
+    $self->{srcfile} //= "UNKNOWN";
+    $self->{offset}  //= 0;
     if ( my $src = $self->{src} ) {
         unless ( $self->{_tree} = $self->parse($src) ) { return $self->{_tree} }
     }
@@ -288,7 +479,17 @@ sub parse {
     \A  <[content]>* \Z
     }xms;
     if ( $str =~ $q->with_actions( new Soy::Actions:: ) ) {
-        return {%/};
+        my $raw_tree = {%/};
+
+        #setup filename and offsets
+        use Plosurin::Utl::SetLinePos;
+        my $line_num_visiter = new Plosurin::Utl::SetLinePos::
+          srcfile => $self->{srcfile},
+          offset  => $self->{offset};
+        $line_num_visiter->visit( $raw_tree->{content} );
+
+        #check errors
+        return $raw_tree;
     }
     else {
         "bad template";

@@ -29,7 +29,39 @@
       }
    },
    "provides" : {
+      "Exp::Digit" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::String" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::Var" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::add" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::base" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::list" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Exp::mult" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
       "Plo::File" : {
+         "file" : "lib/Plosurin.pm",
+         "version" : 0
+      },
+      "Plo::h_params" : {
          "file" : "lib/Plosurin.pm",
          "version" : 0
       },
@@ -39,7 +71,11 @@
       },
       "Plosurin" : {
          "file" : "lib/Plosurin.pm",
-         "version" : "0.0_2"
+         "version" : "0.1"
+      },
+      "Plosurin::AbstractVisiter" : {
+         "file" : "lib/Plosurin/AbstractVisiter.pm",
+         "version" : 0
       },
       "Plosurin::Context" : {
          "file" : "lib/Plosurin/Context.pm",
@@ -61,11 +97,23 @@
          "file" : "lib/Plosurin/To/Perl5.pm",
          "version" : 0
       },
+      "Plosurin::Utl::ExpMapVariables" : {
+         "file" : "lib/Plosurin/Utl/ExpMapVariables.pm",
+         "version" : 0
+      },
+      "Plosurin::Utl::SetLinePos" : {
+         "file" : "lib/Plosurin/Utl/SetLinePos.pm",
+         "version" : 0
+      },
       "Plosurin::Writer::Perl5" : {
          "file" : "lib/Plosurin/Writer/Perl5.pm",
          "version" : 0
       },
       "Soy::Actions" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Soy::Expression" : {
          "file" : "lib/Plosurin/SoyTree.pm",
          "version" : 0
       },
@@ -90,6 +138,14 @@
          "version" : 0
       },
       "Soy::command_elseif" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Soy::command_foreach" : {
+         "file" : "lib/Plosurin/SoyTree.pm",
+         "version" : 0
+      },
+      "Soy::command_foreach_ifempty" : {
          "file" : "lib/Plosurin/SoyTree.pm",
          "version" : 0
       },
@@ -122,7 +178,7 @@
          "version" : 0
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "http://rt.cpan.org/Public/Dist/Display.html?Name=Plosurin"
@@ -134,5 +190,5 @@
          "url" : "git://github.com/zag/p5-Plosurin.git"
       }
    },
-   "version" : "0.0_2"
+   "version" : "0.1"
 }

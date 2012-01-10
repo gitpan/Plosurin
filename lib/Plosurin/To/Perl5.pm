@@ -26,8 +26,9 @@ package Plosurin::To::Perl5;
 use strict;
 use warnings;
 use v5.10;
-use vars qw($AUTOLOAD);
 use Data::Dumper;
+use Plosurin::AbstractVisiter;
+use base 'Plosurin::AbstractVisiter';
 
 =head2 new context=>$ctx, writer=>$writer, package=>"Tmpl"
 
@@ -58,42 +59,14 @@ sub wr     { $_[0]->{writer} }
 sub context { $_[0]->{context} }
 sub ctx     { $_[0]->{context} }
 
-sub visit {
-    my $self = shift;
-    my $n    = shift;
 
-    #get type of file
-    my $ref = ref($n);
-    unless ( ref($n) && UNIVERSAL::isa( $n, 'Soy::base' )
-        || UNIVERSAL::isa( $n, 'Plo::File' )
-        || UNIVERSAL::isa( $n, 'Plo::template' ) )
-    {
-        die "Unknown node type $n (not isa Soy::base)";
-    }
-
-    my $method = ref($n);
-    $method =~ s/.*:://;
-
-    #make method name
-    $self->$method($n);
-}
-
-sub visit_childs {
-    my $self = shift;
-    foreach my $n (@_) {
-        die "Unknow type $n (not isa Soy::base)"
-          unless UNIVERSAL::isa( $n, 'Soy::base' );
-        foreach my $ch ( @{ $n->childs } ) {
-            $self->visit($ch);
-        }
-    }
-}
 
 sub start_write {
     my $self = shift;
     my $w    = $self->wr;
     return if $w->{start_write_done}++;
     $w->print(<<"TXT");
+# Please don't edit this file by hand.
 package $self->{package};
 use strict;
 use utf8;
@@ -213,9 +186,10 @@ sub command_param_self {
 sub raw_text {
     my ( $self, $node ) = @_;
     my $w = $self->wr;
-    $w->appendOutputVar("'$node->{''}'");
-
-    #    warn Dumper($node);
+    my $txt = $node->{''};
+    #escape '
+    $txt =~ s/'/\\'/g;
+    $w->appendOutputVar("'$txt'");
 }
 
 =head2 File
@@ -230,6 +204,16 @@ sub File {
     #    $self->visit_childs($node);
     #walk
     foreach my $t ( @{ $node->childs } ) {
+        #setup current template
+        #setup current params
+        #make params map 
+        my %params = ();
+        foreach my $p ($t->params()) {
+            $params{$p->name} = 0;
+        }
+        #setup current template PARAMS
+        $self->{PARAMS} = \%params;
+        
         my $tmpl_name = $t->name;
         my $namespace = $node->namespace;
         ( my $converted_name = $namespace . $tmpl_name ) =~ tr/\./_/;
@@ -251,11 +235,14 @@ TMPL
 
         #set current namespace (used for {call})
         $self->ctx->{namespace} = $namespace;
+
+        #parse template
         $self->visit_childs($t);
         $w->initOutputVar();
         $w->say("return \$$vname;");
         $w->dec_ident;
         $w->say('}');
+        $w->say(''); # empty line
 
         #collect statistic
         push @{ $self->{tmpls} },
@@ -266,15 +253,57 @@ TMPL
             perl5_name   => $converted_name,
             package_name => $self->{package} . "::" . $converted_name,
           };
+        # clear current template PARAMS
+        delete $self->{PARAMS};
+
     }
+}
+sub command_foreach {
+    my ($self, $n) = @_;
+    my $w    = $self->wr;
+#    die Dumper $self->ctx;
+    my $vname = $n->get_var_name();
+    my $id = ++${ $w->{nodeid} };
+    my $list_var =  "list_". $vname. $id;
+    my $list_len_var = "len_". $vname. $id;
+    my $exp = $n->{expression}->parse($w->var_map, $self->{PARAMS})->as_perl5();
+    $w->say("my \$$list_var = ". $exp .";");
+    $w->say("my \$$list_len_var = scalar(\@\$$list_var);");
+    $w->initOutputVar();
+    #check ifempty
+    if ($n->get_ifempty) {
+        $w->say("if ( \$$list_len_var > 0 ) {");
+        $w->inc_ident();
+    }
+    #export foreach
+    my $index_var_name = "idx_$vname".$id;
+    $w->say("for (my \$$index_var_name = 0; \$$index_var_name < \$$list_len_var; \$$index_var_name++) {");
+        $w->inc_ident();
+        my $data_var_name = "data_$vname".$id;
+        #map tempalte variable to actual name
+        $w->set_var_map($vname,$data_var_name);
+        #data variable
+        $w->say("my \$$data_var_name = \$$list_var\->[\$$index_var_name];");
+        $self->visit_childs($n);
+        $w->dec_ident();
+        $w->say('}');
+    if (my $ifempty_node = $n->get_ifempty) {
+        $w->dec_ident();
+        $w->say('} else {');
+        $w->inc_ident();
+        $w->say('#ifempty content');
+        $self->visit_childs($ifempty_node);
+        $w->dec_ident();
+        $w->say('} # ifempty');
+     }
+
 }
 
 sub command_print {
     my ( $self, $n ) = @_;
     my $w    = $self->wr;
-    my $expr = $n->{variable};
-    $expr =~ s/^\$//;
-    $w->appendOutputVar( '$args{\'' . $expr . '\'}' );
+    my $p5_code = $n->{expression}->parse($w->var_map, , $self->{PARAMS})->as_perl5();
+    $w->appendOutputVar($p5_code)
 }
 
 use Perl6::Pod::To::XHTML; 
@@ -311,22 +340,6 @@ sub command_import {
     $w->appendOutputVar( qq!'$str'! );
 }
 
-sub AUTOLOAD {
-    my $self   = shift;
-    my $method = $AUTOLOAD;
-    $method =~ s/.*:://;
-    return if $method eq 'DESTROY';
-
-    #check if can
-    if ( $self->can($method) ) {
-        my $superior = "SUPER::$method";
-        $self->$superior(@_);
-    }
-    else {
-        die "NOT IMPLEMENTED $method !";
-    }
-
-}
 
 1;
 __END__
